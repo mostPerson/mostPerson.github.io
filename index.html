@@ -196,6 +196,26 @@
             messageBox.classList.remove('hidden');
         }
 
+        function findValidSpawnPoint(zone) {
+            let x, y, tileX, tileY, tileType;
+            const padding = TILE_SIZE; 
+
+            // Define Y boundaries for spawning based on the zone
+            const yMin = zone === 'plains' ? padding : (canvas.height / 2);
+            const yMax = zone === 'plains' ? (canvas.height / 2) : (canvas.height - padding);
+
+            do {
+                x = Math.random() * (canvas.width - padding * 2) + padding;
+                y = Math.random() * (yMax - yMin) + yMin;
+                tileX = Math.floor(x / TILE_SIZE);
+                tileY = Math.floor(y / TILE_SIZE);
+                // Ensure tile coordinates are within the map bounds before checking
+                tileType = (mapLayout[tileY] && mapLayout[tileY][tileX] !== undefined) ? mapLayout[tileY][tileX] : 1;
+            } while (tileType === 1 || tileType === 4); // Keep trying if it's a wall or water
+
+            return { x, y };
+        }
+
         // --- Game Object Classes ---
         class Player {
             constructor(x, y) {
@@ -354,13 +374,23 @@
                 }
             }
 
+            isColliding(x, y) {
+                const tileX = Math.floor(x / TILE_SIZE);
+                const tileY = Math.floor(y / TILE_SIZE);
+                const tileType = map[tileY] ? map[tileY][tileX] : 1;
+                return tileType === 1 || tileType === 4; // 1: rock/wall, 4: water
+            }
+
             update() {
                 const dist = getDistance(this, player);
 
                 if (dist < this.aggroRange && dist > player.size / 2) {
                     const angle = Math.atan2(player.y - this.y, player.x - this.x);
-                    this.x += Math.cos(angle) * this.speed;
-                    this.y += Math.sin(angle) * this.speed;
+                    const newX = this.x + Math.cos(angle) * this.speed;
+                    const newY = this.y + Math.sin(angle) * this.speed;
+
+                    if (!this.isColliding(newX, this.y)) this.x = newX;
+                    if (!this.isColliding(this.x, newY)) this.y = newY;
                 }
 
                 if (dist < player.size / 2 + 5) {
@@ -386,17 +416,15 @@
             player = new Player(TILE_SIZE * 2, TILE_SIZE * 2);
             
             enemies = [];
+            // Spawn 5 enemies in the plains area
             for (let i = 0; i < 5; i++) {
-                enemies.push(new Enemy(
-                    Math.random() * (canvas.width - TILE_SIZE*2) + TILE_SIZE, 
-                    Math.random() * (canvas.height/2.5 - TILE_SIZE*2) + TILE_SIZE
-                ));
+                const spawnPoint = findValidSpawnPoint('plains');
+                enemies.push(new Enemy(spawnPoint.x, spawnPoint.y));
             }
+             // Spawn 7 enemies in the cave area
              for (let i = 0; i < 7; i++) {
-                enemies.push(new Enemy(
-                    Math.random() * (canvas.width - TILE_SIZE*2) + TILE_SIZE, 
-                    canvas.height/2 + Math.random() * (canvas.height/2.5 - TILE_SIZE*2) + TILE_SIZE
-                ));
+                const spawnPoint = findValidSpawnPoint('cave');
+                enemies.push(new Enemy(spawnPoint.x, spawnPoint.y));
             }
 
             map = mapLayout;
@@ -522,4 +550,6 @@
     </script>
 </body>
 </html>
+
+
 
